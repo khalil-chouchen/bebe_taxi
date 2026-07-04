@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "Bebe Taxi",
+    "slug": "bebe-taxi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F59E0B"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bebetaxi.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Bebe Taxi needs your location to show available taxis and share your position with drivers.",
+        "NSLocationAlwaysUsageDescription": "Bebe Taxi needs your location during active trips."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F59E0B"
+      },
+      "package": "com.bebetaxi.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Bebe Taxi needs location access to show your position on the map."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

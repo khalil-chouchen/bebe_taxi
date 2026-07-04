@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@bebe-taxi/shared": ["../../packages/shared"],
+      "@bebe-taxi/shared/*": ["../../packages/shared/*"]
+    }
+  },
+  "include": ["server.ts", "src/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
+}
