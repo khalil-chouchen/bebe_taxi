@@ -1,11 +1,8 @@
 import type { Server } from 'socket.io';
 
 declare global {
+  // eslint-disable-next-line no-var
   var io: Server | undefined;
-  var mongoose: {
-    conn: typeof import('mongoose') | null;
-    promise: Promise<typeof import('mongoose')> | null;
-  };
 }
 
 export {};

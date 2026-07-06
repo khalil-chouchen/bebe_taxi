@@ -28,5 +28,5 @@ const ClientProfileSchema = new Schema<IClientProfile>(
 
 ClientProfileSchema.index({ currentLocation: '2dsphere' });
 
-export default mongoose.models.ClientProfile ||
-  mongoose.model<IClientProfile>('ClientProfile', ClientProfileSchema);
+export default (mongoose.models.ClientProfile ||
+  mongoose.model<IClientProfile>('ClientProfile', ClientProfileSchema)) as mongoose.Model<IClientProfile>;

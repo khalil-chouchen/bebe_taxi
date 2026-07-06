@@ -219,7 +219,7 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: StyleSheet.absoluteFillObject,
+  map: StyleSheet.absoluteFill,
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   statusBanner: {
     margin: SPACING.md,

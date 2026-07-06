@@ -41,5 +41,5 @@ const TaxiProfileSchema = new Schema<ITaxiProfile>(
 TaxiProfileSchema.index({ currentLocation: '2dsphere' });
 TaxiProfileSchema.index({ isOnline: 1, isAvailable: 1 });
 
-export default mongoose.models.TaxiProfile ||
-  mongoose.model<ITaxiProfile>('TaxiProfile', TaxiProfileSchema);
+export default (mongoose.models.TaxiProfile ||
+  mongoose.model<ITaxiProfile>('TaxiProfile', TaxiProfileSchema)) as mongoose.Model<ITaxiProfile>;

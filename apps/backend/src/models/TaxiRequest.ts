@@ -40,5 +40,5 @@ TaxiRequestSchema.index({ clientLocation: '2dsphere' });
 TaxiRequestSchema.index({ status: 1, expiresAt: 1 });
 TaxiRequestSchema.index({ clientId: 1, status: 1 });
 
-export default mongoose.models.TaxiRequest ||
-  mongoose.model<ITaxiRequest>('TaxiRequest', TaxiRequestSchema);
+export default (mongoose.models.TaxiRequest ||
+  mongoose.model<ITaxiRequest>('TaxiRequest', TaxiRequestSchema)) as mongoose.Model<ITaxiRequest>;

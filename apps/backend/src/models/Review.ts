@@ -23,4 +23,4 @@ const ReviewSchema = new Schema<IReview>(
 ReviewSchema.index({ taxiId: 1 });
 ReviewSchema.index({ clientId: 1 });
 
-export default mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema);
+export default (mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema)) as mongoose.Model<IReview>;

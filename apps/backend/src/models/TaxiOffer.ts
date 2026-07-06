@@ -31,5 +31,5 @@ TaxiOfferSchema.index({ taxiId: 1, status: 1 });
 // Prevent same taxi from offering twice on same request
 TaxiOfferSchema.index({ requestId: 1, taxiId: 1 }, { unique: true });
 
-export default mongoose.models.TaxiOffer ||
-  mongoose.model<ITaxiOffer>('TaxiOffer', TaxiOfferSchema);
+export default (mongoose.models.TaxiOffer ||
+  mongoose.model<ITaxiOffer>('TaxiOffer', TaxiOfferSchema)) as mongoose.Model<ITaxiOffer>;

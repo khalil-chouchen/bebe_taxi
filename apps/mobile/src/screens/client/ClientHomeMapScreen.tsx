@@ -236,7 +236,7 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: { ...StyleSheet.absoluteFillObject },
+  map: StyleSheet.absoluteFill,
   headerWrapper: { position: 'absolute', top: 0, left: 0, right: 0 },
   header: {
     margin: SPACING.md,

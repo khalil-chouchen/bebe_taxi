@@ -49,4 +49,4 @@ TripSchema.index({ clientId: 1, status: 1 });
 TripSchema.index({ taxiId: 1, status: 1 });
 TripSchema.index({ requestId: 1 }, { unique: true });
 
-export default mongoose.models.Trip || mongoose.model<ITrip>('Trip', TripSchema);
+export default (mongoose.models.Trip || mongoose.model<ITrip>('Trip', TripSchema)) as mongoose.Model<ITrip>;

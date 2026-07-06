@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#F59E0B"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bebetaxi.app",
@@ -43,7 +45,9 @@
           "locationWhenInUsePermission": "Bebe Taxi needs location access to show your position on the map."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-splash-screen",
+      "expo-status-bar"
     ]
   }
 }
