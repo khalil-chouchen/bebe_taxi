@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       clientId: auth.user._id,
       taxiId: acceptedOffer.taxiId,
       startLocation: clientProfile.currentLocation,
+      destinationLocation: taxiRequest.destinationLocation,
       taxiStartLocation: taxiProfile.currentLocation,
       status: 'accepted',
       acceptedAt: new Date(),

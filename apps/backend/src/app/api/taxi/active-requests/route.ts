@@ -23,12 +23,17 @@ export async function GET(request: NextRequest) {
     const result = requests.map((r) => {
       const client = clientMap.get(r.clientId.toString());
       const [lng, lat] = r.clientLocation?.coordinates ?? [0, 0];
+      const [destinationLng, destinationLat] = r.destinationLocation?.coordinates ?? [];
       return {
         requestId: r._id,
         clientId: r.clientId,
         clientName: client?.fullName || 'Client',
         latitude: lat,
         longitude: lng,
+        destinationLocation:
+          typeof destinationLat === 'number' && typeof destinationLng === 'number'
+            ? { latitude: destinationLat, longitude: destinationLng }
+            : undefined,
         expiresAt: r.expiresAt,
         createdAt: r.createdAt,
       };

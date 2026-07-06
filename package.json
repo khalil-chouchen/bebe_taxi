@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "overrides": {
-    "react-native": "0.86.0"
+    "react-native": "0.81.5"
   },
   "scripts": {
     "backend": "npm run dev --workspace=apps/backend",

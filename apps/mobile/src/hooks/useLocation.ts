@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import * as Location from 'expo-location';
 import { LOCATION_UPDATE_INTERVAL_MS } from '@bebe-taxi/shared';
-
-export interface LocationCoords {
-  latitude: number;
-  longitude: number;
-}
+import {
+  getCurrentLocation as fetchCurrentLocation,
+  LocationCoords,
+  LocationServiceError,
+  requestLocationPermission,
+} from '../services/location.service';
 
 interface UseLocationOptions {
   onUpdate?: (location: LocationCoords) => void;
@@ -20,29 +20,31 @@ export function useLocation(options: UseLocationOptions = {}) {
   const { onUpdate, autoStart = false } = options;
 
   const requestPermission = useCallback(async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      setError('Location permission denied');
+    try {
+      const granted = await requestLocationPermission();
+      if (!granted) {
+        setError('Location permission denied');
+        return false;
+      }
+      setPermissionGranted(true);
+      setError(null);
+      return true;
+    } catch (error) {
+      const message = error instanceof LocationServiceError ? error.message : 'Location permission denied';
+      setError(message);
       return false;
     }
-    setPermissionGranted(true);
-    return true;
   }, []);
 
   const getCurrentLocation = useCallback(async (): Promise<LocationCoords | null> => {
     try {
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      const coords = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      };
+      const coords = await fetchCurrentLocation();
       setLocation(coords);
       onUpdate?.(coords);
+      setError(null);
       return coords;
     } catch (e: any) {
-      setError(e.message);
+      setError(e instanceof LocationServiceError ? e.message : 'GPS unavailable');
       return null;
     }
   }, [onUpdate]);

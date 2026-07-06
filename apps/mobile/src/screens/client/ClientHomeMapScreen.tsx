@@ -11,7 +11,6 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ClientStackParamList, TaxiMapMarker } from '../../types';
 import { COLORS, FONT_SIZE, SPACING, DEFAULT_REGION } from '../../constants';
-import { LOCATION_UPDATE_INTERVAL_MS } from '@bebe-taxi/shared';
 import { useAuthStore } from '../../store/authStore';
 import { useLocation } from '../../hooks/useLocation';
 import { clientApi } from '../../services/api';
@@ -19,8 +18,17 @@ import { connectSocket, getSocket } from '../../services/socket';
 import { showToast } from '../../components/Toast';
 import TaxiMarker from '../../components/TaxiMarker';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import RoutePolyline from '../../components/RoutePolyline';
+import { MAP_PROVIDER } from '../../config/maps';
 
 type Props = NativeStackScreenProps<ClientStackParamList, 'ClientHomeMap'>;
+
+type SelectionMode = 'pickup' | 'destination' | null;
+
+interface LatLng {
+  latitude: number;
+  longitude: number;
+}
 
 export default function ClientHomeMapScreen({ navigation }: Props) {
   const { user } = useAuthStore();
@@ -30,17 +38,26 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [loadingTaxis, setLoadingTaxis] = useState(true);
+  const [pickupLocation, setPickupLocation] = useState<LatLng | null>(null);
+  const [destinationLocation, setDestinationLocation] = useState<LatLng | null>(null);
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>(null);
 
   // Ref so socket callbacks always see the latest requestId without stale closure
   const activeRequestIdRef = useRef<string | null>(null);
+  const didSeedPickupRef = useRef(false);
 
   const setActiveRequest = (id: string | null) => {
     activeRequestIdRef.current = id;
     setActiveRequestId(id);
   };
 
-  const { location, startTracking } = useLocation({
+  const { location, startTracking, error } = useLocation({
     onUpdate: async (coords) => {
+      if (!didSeedPickupRef.current && !pickupLocation) {
+        didSeedPickupRef.current = true;
+        setPickupLocation(coords);
+      }
+
       try {
         await clientApi.updateLocation(coords.latitude, coords.longitude);
         const socket = getSocket();
@@ -61,6 +78,30 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
       setLoadingTaxis(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (location && !didSeedPickupRef.current && !pickupLocation) {
+      didSeedPickupRef.current = true;
+      setPickupLocation(location);
+    }
+  }, [location, pickupLocation]);
+
+  useEffect(() => {
+    if (selectionMode) {
+      showToast(
+        selectionMode === 'pickup'
+          ? 'Tap the map to place your pickup point'
+          : 'Tap the map to place your destination',
+        'info'
+      );
+    }
+  }, [selectionMode]);
+
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error');
+    }
+  }, [error]);
 
   useEffect(() => {
     startTracking();
@@ -98,21 +139,41 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
     };
   }, []);
 
+  const handleMapPress = (event: { nativeEvent: { coordinate: LatLng } }) => {
+    if (!selectionMode) return;
+
+    const coordinate = event.nativeEvent.coordinate;
+    if (selectionMode === 'pickup') {
+      setPickupLocation(coordinate);
+    } else {
+      setDestinationLocation(coordinate);
+    }
+    setSelectionMode(null);
+  };
+
   const handleSearchTaxi = async () => {
     if (activeRequestId) {
       navigation.navigate('TaxiOffers', { requestId: activeRequestId });
       return;
     }
 
-    if (!location) {
-      showToast('Localisation non disponible', 'warning');
+    if (!pickupLocation) {
+      showToast('Pickup location not set', 'warning');
+      return;
+    }
+
+    if (!destinationLocation) {
+      showToast('Destination location not set', 'warning');
       return;
     }
 
     setIsRequesting(true);
     try {
-      await clientApi.updateLocation(location.latitude, location.longitude);
-      const res = await clientApi.requestTaxi();
+      await clientApi.updateLocation(pickupLocation.latitude, pickupLocation.longitude);
+      const res = await clientApi.requestTaxi({
+        pickupLocation,
+        destinationLocation,
+      });
       const requestId = res.data.request._id;
       setActiveRequest(requestId);
       showToast('Recherche de taxi en cours...', 'info');
@@ -141,9 +202,12 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
     return <LoadingSpinner fullScreen message="Récupération de votre position..." />;
   }
 
-  const region: Region = location
-    ? { ...location, latitudeDelta: 0.03, longitudeDelta: 0.03 }
+  const centerLocation = pickupLocation ?? location;
+  const region: Region = centerLocation
+    ? { ...centerLocation, latitudeDelta: 0.03, longitudeDelta: 0.03 }
     : DEFAULT_REGION;
+
+  const activePickup = centerLocation;
 
   return (
     <View style={styles.container}>
@@ -151,10 +215,36 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
         ref={mapRef}
         style={styles.map}
         region={region}
+        provider={MAP_PROVIDER}
+        onPress={handleMapPress}
         showsUserLocation
         showsMyLocationButton
         userInterfaceStyle="light"
       >
+        {activePickup && (
+          <Marker coordinate={activePickup} identifier="pickup">
+            <View style={styles.pickupMarker}>
+              <Text style={styles.markerEmoji}>📍</Text>
+            </View>
+          </Marker>
+        )}
+
+        {destinationLocation && (
+          <Marker coordinate={destinationLocation} identifier="destination">
+            <View style={styles.destinationMarker}>
+              <Text style={styles.markerEmoji}>🎯</Text>
+            </View>
+          </Marker>
+        )}
+
+        {activePickup && destinationLocation && (
+          <RoutePolyline
+            origin={activePickup}
+            destination={destinationLocation}
+            onError={(message) => showToast(message, 'warning')}
+          />
+        )}
+
         {availableTaxis.map((taxi) => (
           <TaxiMarker
             key={taxi.taxiId}
@@ -188,6 +278,39 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
       {/* Bottom action */}
       <SafeAreaView style={styles.bottomWrapper}>
         <View style={styles.bottomCard}>
+          <View style={styles.selectionRow}>
+            <TouchableOpacity
+              style={[styles.selectionBtn, selectionMode === 'pickup' && styles.selectionBtnActive]}
+              onPress={() => setSelectionMode('pickup')}
+            >
+              <Text style={styles.selectionBtnText}>Set pickup</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.selectionBtn,
+                selectionMode === 'destination' && styles.selectionBtnActive,
+              ]}
+              onPress={() => setSelectionMode('destination')}
+            >
+              <Text style={styles.selectionBtnText}>Set destination</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.routeSummary}>
+            <Text style={styles.routeLabel}>Pickup</Text>
+            <Text style={styles.routeValue} numberOfLines={1}>
+              {pickupLocation
+                ? `${pickupLocation.latitude.toFixed(5)}, ${pickupLocation.longitude.toFixed(5)}`
+                : 'Tap map to choose pickup'}
+            </Text>
+            <Text style={styles.routeLabel}>Destination</Text>
+            <Text style={styles.routeValue} numberOfLines={1}>
+              {destinationLocation
+                ? `${destinationLocation.latitude.toFixed(5)}, ${destinationLocation.longitude.toFixed(5)}`
+                : 'Tap map to choose destination'}
+            </Text>
+          </View>
+
           {activeRequestId ? (
             <View style={styles.activeRequest}>
               <View style={styles.pulseRow}>
@@ -236,7 +359,7 @@ export default function ClientHomeMapScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: StyleSheet.absoluteFill,
+  map: StyleSheet.absoluteFillObject,
   headerWrapper: { position: 'absolute', top: 0, left: 0, right: 0 },
   header: {
     margin: SPACING.md,
@@ -302,6 +425,30 @@ const styles = StyleSheet.create({
   btnText: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.dark },
   searchEmoji: { fontSize: 20 },
   activeRequest: { gap: SPACING.sm },
+  selectionRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
+  selectionBtn: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.lightGray,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+  },
+  selectionBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primaryDark,
+  },
+  selectionBtnText: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.dark },
+  routeSummary: {
+    gap: 2,
+    marginBottom: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: 12,
+    backgroundColor: COLORS.lightGray,
+  },
+  routeLabel: { fontSize: FONT_SIZE.xs, color: COLORS.mediumGray, textTransform: 'uppercase' },
+  routeValue: { fontSize: FONT_SIZE.sm, color: COLORS.dark, marginBottom: 4 },
   pulseRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pulse: {
     width: 12,
@@ -311,4 +458,25 @@ const styles = StyleSheet.create({
   },
   activeText: { fontSize: FONT_SIZE.md, color: COLORS.dark, fontWeight: '600' },
   activeButtons: { flexDirection: 'row', gap: SPACING.sm },
+  pickupMarker: {
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  destinationMarker: {
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.blue,
+  },
+  markerEmoji: { fontSize: 18 },
 });

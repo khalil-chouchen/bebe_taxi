@@ -1,6 +1,39 @@
-# 🚖 Bebe Taxi — Full-Stack MVP
+# 🚖 Bebe Taxi
 
-A real-time taxi app built with **React Native (Expo SDK 54)** + **Next.js** + **Socket.IO** + **MongoDB**.
+A real-time taxi booking MVP: clients request a ride, nearby drivers see it live on the map, send offers, and the trip is tracked in real time until drop-off — all built to run on a physical phone via **Expo Go**, no native build required.
+
+---
+
+## Features
+
+- **Phone + OTP authentication** (WhatsApp OTP in production, mock code in dev mode)
+- **Live map** for both client and taxi roles (pickup/destination selection, nearby drivers/requests)
+- **Real-time request → offer → accept flow** over Socket.IO (no polling)
+- **Live location tracking** during an active trip (client ↔ taxi)
+- **Route directions** with Google Maps / OSRM fallback / straight-line fallback, so the app keeps working even without a Maps API key
+- **Trip lifecycle**: request, offer, accept, arriving, arrived, complete, review
+- **WhatsApp deep link** to call/message the other party mid-trip
+- Works in plain **Expo Go** on iOS and Android — no EAS build needed
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Mobile | React Native · Expo SDK 54 · TypeScript |
+| Navigation | React Navigation v7 |
+| Maps | react-native-maps (Apple Maps / Google Maps) + OSRM/straight-line fallback |
+| Location | expo-location |
+| Storage | expo-secure-store |
+| State | Zustand |
+| HTTP | Axios |
+| Real-time | Socket.IO client |
+| Backend | Next.js 14 (custom server) · TypeScript |
+| Database | MongoDB · Mongoose |
+| Auth | JWT · bcryptjs |
+| Real-time server | Socket.IO |
+| OTP | WhatsApp (Meta Cloud API / Twilio), or mock in `DEV_MODE` |
 
 ---
 
@@ -9,177 +42,171 @@ A real-time taxi app built with **React Native (Expo SDK 54)** + **Next.js** + *
 ```
 bebe-taxi/
 ├── apps/
-│   ├── backend/          # Next.js 14 + Socket.IO + MongoDB
-│   └── mobile/           # Expo SDK 54 React Native app
+│   ├── backend/          Next.js 14 + Socket.IO + MongoDB
+│   │   ├── server.ts     Custom HTTP server (binds Socket.IO to the same port)
+│   │   └── src/
+│   │       ├── app/api/  REST endpoints
+│   │       ├── sockets/  Socket.IO event handlers
+│   │       ├── models/   Mongoose models
+│   │       ├── services/ Maps/geocoding service
+│   │       └── lib/      JWT, MongoDB connection
+│   └── mobile/           Expo SDK 54 React Native app
+│       ├── App.tsx        Entry point
+│       ├── metro.config.js Monorepo module resolution
+│       └── src/
+│           ├── screens/   All app screens (+ .web.tsx variants for browser preview)
+│           ├── navigation/ React Navigation stacks
+│           ├── services/  API client, Socket.IO client, maps/location services
+│           ├── store/     Zustand auth store
+│           └── config/    EXPO_PUBLIC_* env vars
 └── packages/
-    └── shared/           # Shared TypeScript types & constants
+    └── shared/            TypeScript types & constants shared by both apps
 ```
 
 ---
 
-## Prerequisites
+## Requirements
 
 | Tool | Version |
 |------|---------|
-| Node.js | 18+ |
-| npm | 9+ |
-| MongoDB | 6+ (local or Atlas) |
-| Expo Go | Latest (iOS/Android) |
+| Node.js | 20.x or 22.x LTS |
+| npm | 10.x |
+| MongoDB | 7.x local, or MongoDB Atlas |
+| Expo Go | Latest (App Store / Play Store) |
+
+> Your phone and computer must be on the **same Wi-Fi network** — Expo Go on a physical device needs to reach your computer's backend over LAN.
 
 ---
 
-## 1. Clone & Install
+## Installation
 
 ```bash
 git clone <repo-url>
 cd bebe-taxi
-
-# Install root workspace
 npm install
+```
 
-# Install backend
-cd apps/backend && npm install
+This installs all three workspaces (`apps/backend`, `apps/mobile`, `packages/shared`) in one step via npm workspaces.
 
-# Install mobile
-cd ../mobile && npm install
+If you hit peer-dependency conflicts:
+```bash
+npm install --legacy-peer-deps
 ```
 
 ---
 
-## 2. Backend Setup
+## Environment Variables
 
-### Environment Variables
-
-Copy and edit `.env`:
-```bash
-cd apps/backend
-cp .env.example .env
-```
-
-Edit `apps/backend/.env`:
-
-```env
-PORT=3001
-NODE_ENV=development
-
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/bebe_taxi
-
-# JWT
-JWT_SECRET=your_super_secret_key_here
-JWT_EXPIRES_IN=30d
-
-# WhatsApp OTP
-DEV_MODE=true        # ← keep true for local dev (mock OTP = 123456)
-
-# Meta WhatsApp Cloud API (set DEV_MODE=false to use)
-META_WHATSAPP_TOKEN=your_meta_token
-META_WHATSAPP_PHONE_ID=your_phone_id
-
-# OR Twilio (set WHATSAPP_PROVIDER=twilio)
-WHATSAPP_PROVIDER=meta
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-
-# Google Maps (optional — enables real route polylines)
-GOOGLE_MAPS_API_KEY=your_key_here
-
-CORS_ORIGIN=*
-```
-
-### Run Backend
+Copy the example files and fill in your own values:
 
 ```bash
-cd apps/backend
-npm run dev
+cp apps/backend/.env.example apps/backend/.env
+cp apps/mobile/.env.example apps/mobile/.env
 ```
 
-The server starts at `http://localhost:3001`.  
-Socket.IO is attached on the same port.
+### `apps/backend/.env`
+
+| Variable | Purpose | Dev default |
+|---|---|---|
+| `PORT` | Backend port | `3001` |
+| `HOST` | Bind address (`0.0.0.0` so your phone can reach it over LAN) | `0.0.0.0` |
+| `MONGODB_URI` | MongoDB connection string | `mongodb://localhost:27017/bebe_taxi` |
+| `JWT_SECRET` | Signing secret for auth tokens — **must be changed for any real deployment** | placeholder |
+| `DEV_MODE` | `true` → OTP is always `123456`, no WhatsApp calls made | `true` |
+| `META_WHATSAPP_TOKEN` / `META_WHATSAPP_PHONE_ID` | Meta WhatsApp Cloud API creds (only used if `DEV_MODE=false`) | empty |
+| `WHATSAPP_PROVIDER` | `meta` or `twilio` | `meta` |
+| `TWILIO_*` | Twilio WhatsApp alternative creds | empty |
+| `GOOGLE_MAPS_API_KEY` | Enables real geocoding/directions; leave empty to use the OSRM/straight-line fallback | empty |
+| `MAPS_PROVIDER` | `google` | `google` |
+| `ENABLE_MAPS_FALLBACK` | Falls back to OSRM/straight-line if Google key is missing or the API fails | `true` |
+| `CORS_ORIGIN` | Allowed origin(s) for the REST API (needed for the web/browser build) | `*` |
+
+### `apps/mobile/.env`
+
+All variables **must** be prefixed `EXPO_PUBLIC_` to be readable in the app. `EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_SOCKET_URL` are auto-written by the `prestart` script (see below) — you normally don't need to edit them by hand.
+
+| Variable | Purpose |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Backend REST base URL, auto-set to your LAN IP |
+| `EXPO_PUBLIC_SOCKET_URL` | Backend Socket.IO URL, auto-set to your LAN IP |
+| `EXPO_PUBLIC_MAPS_PROVIDER` | `default` (Apple Maps on iOS / default Android provider) |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional, only needed if you explicitly want Google Maps rendering in a dev build (not Expo Go) |
+
+**No real secrets belong in `apps/mobile/.env`** — it is bundled into the client app and is not private.
 
 ---
 
-## 3. Mobile Setup
-
-### Configure API URL
-
-Edit `apps/mobile/src/constants/index.ts`:
-
-```ts
-// Replace with your machine's LAN IP (not localhost — Expo Go runs on a real device)
-export const API_BASE_URL = 'http://192.168.1.XXX:3001/api';
-export const SOCKET_URL   = 'http://192.168.1.XXX:3001';
-```
-
-Find your LAN IP:
-- **Windows**: `ipconfig` → look for IPv4 Address
-- **Mac/Linux**: `ifconfig` or `ip addr`
-
-### Add Google Maps Key (Android only)
-
-Edit `apps/mobile/app.json`:
-```json
-"android": {
-  "config": {
-    "googleMaps": {
-      "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-    }
-  }
-}
-```
-
-> **iOS** uses Apple Maps by default (no key needed in Expo Go).
-
-### Run Mobile
+## Running the Backend
 
 ```bash
-cd apps/mobile
-npx expo start
+npm run backend
 ```
 
-Scan the QR code with **Expo Go** on your phone.
+Expected output:
+```
+🚖  Bebe Taxi backend ready
+   Backend running locally : http://localhost:3001
+   Backend running on LAN  : http://192.168.x.x:3001
+   Socket.IO attached
+   DEV_MODE OTP: ON (use code 123456)
+```
+
+Make sure MongoDB is running locally, or that `MONGODB_URI` points to an Atlas cluster.
 
 ---
 
-## 4. Dev OTP (DEV_MODE=true)
+## Running the Mobile App
 
-When `DEV_MODE=true` in the backend `.env`:
+In a second terminal:
 
-- The OTP code is always **`123456`**
-- No WhatsApp messages are sent
-- The API response includes `devCode: "123456"` — shown as a toast in the app
+```bash
+npm run mobile
+```
+
+The `prestart` script auto-detects your machine's LAN IP and writes it into `apps/mobile/.env` before Expo starts. Scan the QR code with **Expo Go** on your phone.
 
 ---
 
-## 5. App Flows
+## OTP Dev Code
 
-### Client Flow
+With `DEV_MODE=true` in `apps/backend/.env` (the default), the OTP is always:
+
+```
+123456
+```
+
+No real WhatsApp messages are sent, and the API response includes `devCode: "123456"` shown as an in-app toast.
+
+---
+
+## App Flows
+
+### Client
 1. Select role → Login/Register (phone + OTP)
 2. See map with available taxis
-3. Press **"Chercher Taxi"** → creates a request
-4. All online taxis see the client icon on their map
-5. Taxi sends an offer → client sees offer list in real time
-6. Client accepts one offer → all others rejected
-7. Map shows only: client position + accepted taxi moving
-8. WhatsApp button to call taxi
+3. Set pickup + destination → **Chercher Taxi**
+4. Online taxis see the request in real time
+5. Taxi sends an offer → client sees it live
+6. Client accepts → all other offers auto-rejected
+7. Live tracking of the accepted taxi's position
+8. WhatsApp button to contact the driver
 9. Taxi marks arrived → client notified
 10. Client leaves a 1–5 star review
 
-### Taxi Driver Flow
+### Taxi Driver
 1. Select role → Login/Register (phone + OTP + taxi details)
-2. Toggle **online** switch → become visible
-3. See client request icons on map
-4. Press a client icon → bottom sheet with name & ETA
-5. Press **"Envoyer une offre"** → offer sent in real time
-6. If client accepts → notified, navigate to ActivePickup screen
-7. Map shows only: taxi position + client moving in real time
-8. Press **"Je suis arrivé !"** → client notified
-9. Press **"Terminer le trajet"** → taxi becomes available again
+2. Toggle **online** → become visible to clients
+3. See client requests on the map
+4. Tap a request → bottom sheet with client info + ETA
+5. **Envoyer une offre** → sent in real time
+6. If accepted → navigate to the active pickup screen
+7. Live tracking of the client's position
+8. **Je suis arrivé !** → client notified
+9. **Terminer le trajet** → taxi becomes available again
 
 ---
 
-## 6. API Reference
+## API Reference
 
 ### Auth
 | Method | Path | Auth |
@@ -217,9 +244,16 @@ When `DEV_MODE=true` in the backend `.env`:
 | GET | `/api/trip/current` | Any |
 | POST | `/api/trip/cancel` | Any |
 
+### Maps
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/maps/geocode` | Public |
+| GET | `/api/maps/reverse-geocode` | Public |
+| GET | `/api/maps/directions` | Public |
+
 ---
 
-## 7. Socket.IO Events
+## Socket.IO Events
 
 ### Client → Server
 | Event | Payload |
@@ -233,101 +267,54 @@ When `DEV_MODE=true` in the backend `.env`:
 | Event | Payload |
 |-------|---------|
 | `taxi:updateLocation` | `{ latitude, longitude }` |
-| `taxi:goOnline` | — |
-| `taxi:goOffline` | — |
+| `taxi:goOnline` / `taxi:goOffline` | — |
 | `taxi:sendOffer` | `{ requestId }` |
 | `taxi:arrived` | — |
 | `taxi:completeTrip` | — |
 
 ### Server → Client/Taxi
-| Event | Sent To |
+| Event | Sent to |
 |-------|---------|
 | `request:new` | All online taxis |
 | `request:cancelled` | All taxis |
 | `offer:new` | Requesting client |
-| `offer:accepted` | Accepted taxi |
-| `offer:rejected` | Rejected taxis |
-| `trip:started` | Client |
-| `trip:locationUpdate` | Client (taxi moving) / Taxi (client) |
-| `trip:arrived` | Client |
-| `trip:completed` | Both |
+| `offer:accepted` / `offer:rejected` | Taxis |
+| `trip:started` / `trip:locationUpdate` / `trip:arrived` / `trip:completed` | Client & taxi |
 
 ---
 
-## 8. Expo Go Limitations
+## Screenshots
 
-| Feature | Status |
-|---------|--------|
-| react-native-maps | ✅ Works (Apple Maps on iOS, Google Maps on Android with key) |
-| expo-location | ✅ Works |
-| expo-secure-store | ✅ Works |
-| expo-image-picker | ✅ Works |
-| socket.io-client | ✅ Works |
-| Background location | ❌ Requires EAS build — not used (we use foreground only) |
-| Push notifications | ❌ Requires EAS build — replaced with in-app toast |
-| Custom native modules | ❌ Not used |
+> _Add screenshots or a short demo GIF here once available._
 
-> All real-time features use Socket.IO instead of push notifications to stay fully Expo Go compatible.
+| Client | Taxi |
+|---|---|
+| _placeholder_ | _placeholder_ |
 
 ---
 
-## 9. WhatsApp OTP — Production Setup
+## Troubleshooting
 
-### Option A: Meta WhatsApp Cloud API
+For a full, step-by-step troubleshooting guide (Expo Go / Metro / MongoDB issues), see **[READY_TO_RUN.md](READY_TO_RUN.md)**.
 
-1. Create a Meta Developer account
-2. Create a WhatsApp Business App
-3. Get `Phone Number ID` and `Permanent Access Token`
-4. Set in `.env`:
-   ```env
-   DEV_MODE=false
-   WHATSAPP_PROVIDER=meta
-   META_WHATSAPP_TOKEN=your_token
-   META_WHATSAPP_PHONE_ID=your_phone_id
-   ```
+Quick pointers:
 
-### Option B: Twilio WhatsApp
-
-1. Create a Twilio account
-2. Get a WhatsApp-enabled number (Sandbox or production)
-3. Set in `.env`:
-   ```env
-   DEV_MODE=false
-   WHATSAPP_PROVIDER=twilio
-   TWILIO_ACCOUNT_SID=your_sid
-   TWILIO_AUTH_TOKEN=your_token
-   TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-   ```
+| Symptom | Likely cause |
+|---|---|
+| `PlatformConstants could not be found` in Expo Go | React/React Native version mismatch — run `npm run clean && npm install` from the root |
+| Blank screen, no error, on phone or in the browser | Full restart of `npm run mobile` + reload; if it persists, check `apps/mobile/App.tsx` still calls `registerRootComponent` |
+| CORS error in the browser console | Backend `CORS_ORIGIN` not set, or `apps/backend/.env` malformed — restart `npm run backend` |
+| App can't reach the backend from the phone | Confirm both devices are on the same Wi-Fi and re-run `npm run mobile` so the LAN IP in `apps/mobile/.env` refreshes |
+| `MongoNetworkError` | MongoDB isn't running locally, or `MONGODB_URI` is wrong |
 
 ---
 
-## 10. Production Checklist
+## Production Checklist
 
 - [ ] Change `JWT_SECRET` to a strong random value
 - [ ] Set `DEV_MODE=false`
-- [ ] Configure real WhatsApp API credentials
-- [ ] Use MongoDB Atlas (or secured MongoDB)
-- [ ] Deploy backend to a cloud server (Railway, Render, VPS)
-- [ ] Update `API_BASE_URL` and `SOCKET_URL` in mobile constants
-- [ ] Add Google Maps API key to `app.json`
-- [ ] Build mobile with `eas build` for production stores
-
----
-
-## Tech Stack Summary
-
-| Layer | Technology |
-|-------|-----------|
-| Mobile | React Native · Expo SDK 54 · TypeScript |
-| Navigation | React Navigation v7 |
-| Maps | react-native-maps |
-| Location | expo-location |
-| Storage | expo-secure-store |
-| State | Zustand |
-| HTTP | Axios |
-| Real-time | Socket.IO client |
-| Backend | Next.js 14 · TypeScript |
-| Database | MongoDB · Mongoose |
-| Auth | JWT · bcryptjs |
-| Real-time server | Socket.IO |
-| OTP | WhatsApp (Meta API / Twilio) |
+- [ ] Configure real WhatsApp API credentials (Meta or Twilio)
+- [ ] Use MongoDB Atlas (or a secured MongoDB instance)
+- [ ] Deploy the backend to a cloud server (Railway, Render, VPS, …)
+- [ ] Add a real `GOOGLE_MAPS_API_KEY` if you want live geocoding/directions
+- [ ] Build the mobile app with `eas build` for the app stores

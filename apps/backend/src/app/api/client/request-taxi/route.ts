@@ -10,6 +10,14 @@ export async function POST(request: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   try {
+    const body = await request.json().catch(() => ({} as Record<string, unknown>));
+    const pickupLocation = body.pickupLocation as
+      | { latitude?: unknown; longitude?: unknown }
+      | undefined;
+    const destinationLocation = body.destinationLocation as
+      | { latitude?: unknown; longitude?: unknown }
+      | undefined;
+
     await connectDB();
 
     // Check if client already has an active request
@@ -30,24 +38,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client profile not found' }, { status: 404 });
     }
 
+    const pickupLatitude =
+      typeof pickupLocation?.latitude === 'number'
+        ? pickupLocation.latitude
+        : clientProfile.currentLocation.coordinates[1];
+    const pickupLongitude =
+      typeof pickupLocation?.longitude === 'number'
+        ? pickupLocation.longitude
+        : clientProfile.currentLocation.coordinates[0];
+
+    const destinationLatitude =
+      typeof destinationLocation?.latitude === 'number' ? destinationLocation.latitude : null;
+    const destinationLongitude =
+      typeof destinationLocation?.longitude === 'number' ? destinationLocation.longitude : null;
+
     const expiresAt = new Date(Date.now() + REQUEST_EXPIRY_MINUTES * 60 * 1000);
 
     const taxiRequest = await TaxiRequest.create({
       clientId: auth.user._id,
-      clientLocation: clientProfile.currentLocation,
+      clientLocation: {
+        type: 'Point',
+        coordinates: [pickupLongitude, pickupLatitude],
+      },
+      destinationLocation:
+        destinationLatitude !== null && destinationLongitude !== null
+          ? {
+              type: 'Point',
+              coordinates: [destinationLongitude, destinationLatitude],
+            }
+          : undefined,
       status: 'searching',
       expiresAt,
     });
 
     // Broadcast new request to all connected taxi drivers via Socket.IO
     if (global.io) {
-      const [lng, lat] = clientProfile.currentLocation.coordinates;
+      const [lng, lat] = [pickupLongitude, pickupLatitude];
       global.io.emit(SOCKET_EVENTS.REQUEST_NEW, {
         requestId: taxiRequest._id,
         clientId: auth.user._id,
         clientName: auth.user.fullName,
         latitude: lat,
         longitude: lng,
+        destinationLocation:
+          destinationLatitude !== null && destinationLongitude !== null
+            ? { latitude: destinationLatitude, longitude: destinationLongitude }
+            : undefined,
         expiresAt: expiresAt.toISOString(),
       });
     }

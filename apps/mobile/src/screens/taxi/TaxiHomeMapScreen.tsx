@@ -11,7 +11,6 @@ import MapView, { Marker, Region } from 'react-native-maps';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TaxiStackParamList, ClientMapMarker } from '../../types';
 import { COLORS, FONT_SIZE, SPACING, DEFAULT_REGION } from '../../constants';
-import { LOCATION_UPDATE_INTERVAL_MS } from '@bebe-taxi/shared';
 import { useAuthStore } from '../../store/authStore';
 import { useLocation } from '../../hooks/useLocation';
 import { taxiApi } from '../../services/api';
@@ -21,6 +20,8 @@ import ClientMarker from '../../components/ClientMarker';
 import BottomSheet from '../../components/BottomSheet';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { formatDistance, formatEta, haversineDistanceKm } from '../../utils/haversine';
+import RoutePolyline from '../../components/RoutePolyline';
+import { MAP_PROVIDER } from '../../config/maps';
 
 type Props = NativeStackScreenProps<TaxiStackParamList, 'TaxiHomeMap'>;
 
@@ -35,7 +36,7 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
   const [sendingOffer, setSendingOffer] = useState(false);
   const [myLocation, setMyLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const { location, startTracking } = useLocation({
+  const { location, startTracking, error } = useLocation({
     onUpdate: async (coords) => {
       setMyLocation(coords);
       if (isOnline) {
@@ -49,6 +50,12 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
     },
   });
 
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error');
+    }
+  }, [error]);
+
   const fetchRequests = useCallback(async () => {
     if (!isOnline) return;
     try {
@@ -60,6 +67,7 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
           clientName: r.clientName,
           latitude: r.latitude,
           longitude: r.longitude,
+          destinationLocation: r.destinationLocation,
           expiresAt: r.expiresAt,
         }))
       );
@@ -84,6 +92,7 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
               clientName: data.clientName,
               latitude: data.latitude,
               longitude: data.longitude,
+              destinationLocation: data.destinationLocation,
               expiresAt: data.expiresAt,
             },
           ];
@@ -192,16 +201,30 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
         )
       : null;
 
+  const routeOrigin = selectedRequest && myLocation ? myLocation : null;
+  const routeDestination = selectedRequest
+    ? { latitude: selectedRequest.latitude, longitude: selectedRequest.longitude }
+    : null;
+
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
         style={styles.map}
         region={region}
+        provider={MAP_PROVIDER}
         showsUserLocation
         showsMyLocationButton
         userInterfaceStyle="light"
       >
+        {routeOrigin && routeDestination && (
+          <RoutePolyline
+            origin={routeOrigin}
+            destination={routeDestination}
+            onError={(message) => showToast(message, 'warning')}
+          />
+        )}
+
         {isOnline &&
           clientRequests.map((req) => (
             <ClientMarker
@@ -271,6 +294,11 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
               </View>
               <View style={styles.clientDetails}>
                 <Text style={styles.clientName}>{selectedRequest.clientName}</Text>
+                {selectedRequest.destinationLocation && (
+                  <Text style={styles.clientDest} numberOfLines={1}>
+                    🎯 {selectedRequest.destinationLocation.latitude.toFixed(5)}, {selectedRequest.destinationLocation.longitude.toFixed(5)}
+                  </Text>
+                )}
                 {distanceToSelected !== null && (
                   <>
                     <Text style={styles.clientDist}>
@@ -310,7 +338,7 @@ export default function TaxiHomeMapScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: StyleSheet.absoluteFill,
+  map: StyleSheet.absoluteFillObject,
   headerWrapper: { position: 'absolute', top: 0, left: 0, right: 0 },
   header: {
     margin: SPACING.md,
@@ -369,6 +397,7 @@ const styles = StyleSheet.create({
   },
   clientDetails: { flex: 1, gap: 4 },
   clientName: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.dark },
+  clientDest: { fontSize: FONT_SIZE.sm, color: COLORS.mediumGray },
   clientDist: { fontSize: FONT_SIZE.md, color: COLORS.primary, fontWeight: '600' },
   clientEta: { fontSize: FONT_SIZE.sm, color: COLORS.mediumGray },
   offerBtn: {

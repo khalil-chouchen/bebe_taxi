@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F59E0B"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -45,9 +40,15 @@
           "locationWhenInUsePermission": "Bebe Taxi needs location access to show your position on the map."
         }
       ],
-      "expo-secure-store",
-      "expo-splash-screen",
-      "expo-status-bar"
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F59E0B",
+          "image": "./assets/splash.png",
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-secure-store"
     ]
   }
 }

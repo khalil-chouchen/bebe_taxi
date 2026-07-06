@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Polyline } from 'react-native-maps';
 import { COLORS } from '../constants';
-import { GOOGLE_MAPS_API_KEY, IS_DEV } from '../config/env';
+import { getRouteDirections } from '../services/maps.service';
 
 interface LatLng {
   latitude: number;
@@ -13,27 +13,7 @@ interface RoutePolylineProps {
   destination: LatLng;
   color?: string;
   strokeWidth?: number;
-}
-
-async function fetchGoogleDirections(
-  origin: LatLng,
-  destination: LatLng,
-  apiKey: string
-): Promise<LatLng[]> {
-  const url =
-    `https://maps.googleapis.com/maps/api/directions/json` +
-    `?origin=${origin.latitude},${origin.longitude}` +
-    `&destination=${destination.latitude},${destination.longitude}` +
-    `&mode=driving&key=${apiKey}`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  if (data.status !== 'OK' || !data.routes?.length) {
-    return [];
-  }
-
-  return decodePolyline(data.routes[0].overview_polyline.points);
+  onError?: (message: string) => void;
 }
 
 function decodePolyline(encoded: string): LatLng[] {
@@ -75,27 +55,38 @@ export default function RoutePolyline({
   destination,
   color = COLORS.primary,
   strokeWidth = 4,
+  onError,
 }: RoutePolylineProps) {
   const [coordinates, setCoordinates] = useState<LatLng[]>([origin, destination]);
+  const onErrorRef = useRef<RoutePolylineProps['onError']>(onError);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   useEffect(() => {
     if (!origin || !destination) return;
 
-    if (GOOGLE_MAPS_API_KEY) {
-      fetchGoogleDirections(origin, destination, GOOGLE_MAPS_API_KEY)
-        .then((pts) => {
-          setCoordinates(pts.length > 0 ? pts : [origin, destination]);
-        })
-        .catch(() => setCoordinates([origin, destination]));
-    } else {
-      if (IS_DEV) {
-        console.warn(
-          '[RoutePolyline] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is not set — ' +
-            'using straight-line fallback. Add your key to apps/mobile/.env.'
-        );
-      }
-      setCoordinates([origin, destination]);
-    }
+    let cancelled = false;
+
+    getRouteDirections(origin, destination)
+      .then((route) => {
+        if (cancelled) return;
+        if (route.coordinates.length > 0) {
+          setCoordinates(route.coordinates);
+        } else {
+          setCoordinates([origin, destination]);
+        }
+      })
+      .catch((error: Error) => {
+        if (cancelled) return;
+        onErrorRef.current?.(error.message || 'Route unavailable');
+        setCoordinates([origin, destination]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [origin.latitude, origin.longitude, destination.latitude, destination.longitude]);
 
   if (!coordinates.length) return null;

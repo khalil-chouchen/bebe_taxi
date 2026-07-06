@@ -1,0 +1,10 @@
+import React from 'react';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { TaxiStackParamList } from '../../types';
+import WebMapNotice from '../../components/WebMapNotice';
+
+type Props = NativeStackScreenProps<TaxiStackParamList, 'TaxiHomeMap'>;
+
+export default function TaxiHomeMapScreen({ navigation }: Props) {
+  return <WebMapNotice onBack={navigation.canGoBack() ? navigation.goBack : undefined} />;
+}

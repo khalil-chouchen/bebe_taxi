@@ -19,6 +19,7 @@ import { formatDistance, haversineDistanceKm } from '../../utils/haversine';
 import RoutePolyline from '../../components/RoutePolyline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useLocation } from '../../hooks/useLocation';
+import { MAP_PROVIDER } from '../../config/maps';
 
 type Props = NativeStackScreenProps<TaxiStackParamList, 'ActivePickup'>;
 
@@ -33,7 +34,7 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
   const [tripStatus, setTripStatus] = useState<string>('accepted');
   const [loading, setLoading] = useState(true);
 
-  const { location: taxiLocation, startTracking } = useLocation({
+  const { location: taxiLocation, startTracking, error } = useLocation({
     onUpdate: async (coords) => {
       const socket = getSocket();
       if (socket?.connected) {
@@ -43,6 +44,12 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
       }
     },
   });
+
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error');
+    }
+  }, [error]);
 
   useEffect(() => {
     loadTrip();
@@ -142,7 +149,7 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       {region && (
-        <MapView ref={mapRef} style={styles.map} region={region} showsUserLocation>
+        <MapView ref={mapRef} style={styles.map} region={region} provider={MAP_PROVIDER} showsUserLocation>
           {clientLocation && (
             <Marker coordinate={clientLocation} identifier="client">
               <View style={styles.clientIcon}>
@@ -151,7 +158,11 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
             </Marker>
           )}
           {taxiLocation && clientLocation && (
-            <RoutePolyline origin={taxiLocation} destination={clientLocation} />
+            <RoutePolyline
+              origin={taxiLocation}
+              destination={clientLocation}
+              onError={(message) => showToast(message, 'warning')}
+            />
           )}
         </MapView>
       )}
@@ -219,7 +230,7 @@ export default function ActivePickupScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: StyleSheet.absoluteFill,
+  map: StyleSheet.absoluteFillObject,
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   statusBanner: {
     margin: SPACING.md,

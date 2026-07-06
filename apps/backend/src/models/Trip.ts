@@ -10,6 +10,10 @@ export interface ITrip extends Document {
     type: 'Point';
     coordinates: [number, number];
   };
+  destinationLocation?: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
   taxiStartLocation: {
     type: 'Point';
     coordinates: [number, number];
@@ -28,6 +32,10 @@ const TripSchema = new Schema<ITrip>(
     startLocation: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], required: true },
+    },
+    destinationLocation: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number] },
     },
     taxiStartLocation: {
       type: { type: String, enum: ['Point'], default: 'Point' },

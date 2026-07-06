@@ -10,6 +10,30 @@ export interface LatLng {
   longitude: number;
 }
 
+export interface RouteCoordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  formattedAddress: string;
+  provider: 'google' | 'fallback';
+}
+
+export interface DirectionsResult {
+  provider: 'google' | 'osrm' | 'fallback';
+  distanceText: string;
+  distanceMeters: number;
+  durationText: string;
+  durationSeconds: number;
+  encodedPolyline?: string;
+  coordinates: RouteCoordinate[];
+}
+
+export type MapsProvider = 'default' | 'google';
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 export interface RegisterClientPayload {
@@ -87,6 +111,7 @@ export interface TaxiRequestPublic {
   _id: string;
   clientId: string;
   clientLocation: GeoPoint;
+  destinationLocation?: GeoPoint;
   status: RequestStatus;
   acceptedTaxiId?: string;
   createdAt: string;
@@ -126,6 +151,7 @@ export interface TripPublic {
   clientId: string;
   taxiId: string;
   startLocation: GeoPoint;
+  destinationLocation?: GeoPoint;
   taxiStartLocation: GeoPoint;
   status: TripStatus;
   acceptedAt: string;

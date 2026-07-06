@@ -107,10 +107,12 @@ const socketUrl = `http://${ip}:${port}`;
 // Preserve existing values (e.g. GOOGLE_MAPS_API_KEY) from current .env
 const existing = readEnvFile(MOBILE_ENV_PATH);
 const googleMapsKey = existing.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
+const mapsProvider = existing.EXPO_PUBLIC_MAPS_PROVIDER ?? 'default';
 
 const envContent =
   `EXPO_PUBLIC_API_URL=${apiUrl}\n` +
   `EXPO_PUBLIC_SOCKET_URL=${socketUrl}\n` +
+  `EXPO_PUBLIC_MAPS_PROVIDER=${mapsProvider}\n` +
   `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=${googleMapsKey}\n`;
 
 fs.writeFileSync(MOBILE_ENV_PATH, envContent, 'utf8');
@@ -127,4 +129,5 @@ if (googleMapsKey) {
 } else {
   console.log('  Maps Key   : (not set — polyline will use straight-line fallback)');
 }
+console.log(`  Maps Mode  : ${mapsProvider}`);
 console.log('');

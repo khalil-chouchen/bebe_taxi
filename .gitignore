@@ -6,6 +6,9 @@ node_modules/
 .env.local
 .env.development
 .env.production
+.env.*.local
+apps/backend/.env
+apps/mobile/.env
 # Keep .env.example files (they are safe placeholders)
 !.env.example
 
@@ -14,6 +17,12 @@ node_modules/
 out/
 dist/
 build/
+coverage/
+*.tsbuildinfo
+
+# ── User-uploaded runtime content ─────────────────────────────────────────────
+apps/backend/public/uploads/*
+!apps/backend/public/uploads/.gitkeep
 
 # ── Expo / React Native ───────────────────────────────────────────────────────
 .expo/

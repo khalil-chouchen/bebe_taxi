@@ -19,6 +19,7 @@ import { openWhatsApp } from '../../utils/whatsapp';
 import { formatDistance, formatEta, haversineDistanceKm } from '../../utils/haversine';
 import RoutePolyline from '../../components/RoutePolyline';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { MAP_PROVIDER } from '../../config/maps';
 
 type Props = NativeStackScreenProps<ClientStackParamList, 'ActiveTrip'>;
 
@@ -131,7 +132,7 @@ export default function ActiveTripScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       {region && (
-        <MapView ref={mapRef} style={styles.map} region={region} showsUserLocation>
+        <MapView ref={mapRef} style={styles.map} region={region} provider={MAP_PROVIDER} showsUserLocation>
           {taxiLocation && (
             <Marker coordinate={taxiLocation} identifier="taxi">
               <View style={styles.taxiIcon}>
@@ -140,7 +141,11 @@ export default function ActiveTripScreen({ navigation, route }: Props) {
             </Marker>
           )}
           {clientLocation && taxiLocation && (
-            <RoutePolyline origin={taxiLocation} destination={clientLocation} />
+            <RoutePolyline
+              origin={taxiLocation}
+              destination={clientLocation}
+              onError={(message) => showToast(message, 'warning')}
+            />
           )}
         </MapView>
       )}
@@ -213,7 +218,7 @@ export default function ActiveTripScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  map: StyleSheet.absoluteFill,
+  map: StyleSheet.absoluteFillObject,
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   statusBanner: {
     margin: SPACING.md,

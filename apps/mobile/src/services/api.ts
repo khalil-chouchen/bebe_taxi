@@ -25,7 +25,7 @@ api.interceptors.response.use(
   (error: AxiosError<{ error?: string }>) => {
     const message =
       error.response?.data?.error ||
-      error.message ||
+      (error.code === 'ERR_NETWORK' ? 'Backend unavailable' : error.message) ||
       'Something went wrong';
     return Promise.reject(new Error(message));
   }
@@ -71,7 +71,10 @@ export const clientApi = {
 
   getAvailableTaxis: () => api.get('/client/available-taxis'),
 
-  requestTaxi: () => api.post('/client/request-taxi'),
+  requestTaxi: (payload: {
+    pickupLocation: { latitude: number; longitude: number };
+    destinationLocation?: { latitude: number; longitude: number };
+  }) => api.post('/client/request-taxi', payload),
 
   getOffers: (requestId: string) => api.get(`/client/offers/${requestId}`),
 

@@ -40,6 +40,10 @@ export interface ClientMapMarker {
   clientName: string;
   latitude: number;
   longitude: number;
+  destinationLocation?: {
+    latitude: number;
+    longitude: number;
+  };
   expiresAt?: string;
 }
 

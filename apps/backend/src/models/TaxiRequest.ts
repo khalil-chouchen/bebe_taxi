@@ -8,6 +8,10 @@ export interface ITaxiRequest extends Document {
     type: 'Point';
     coordinates: [number, number];
   };
+  destinationLocation?: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
   status: RequestStatus;
   acceptedTaxiId?: Types.ObjectId;
   createdAt: Date;
@@ -24,6 +28,14 @@ const TaxiRequestSchema = new Schema<ITaxiRequest>(
         default: 'Point',
       },
       coordinates: { type: [Number], required: true },
+    },
+    destinationLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: { type: [Number] },
     },
     status: {
       type: String,
