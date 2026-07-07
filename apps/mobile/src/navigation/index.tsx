@@ -8,9 +8,9 @@ import { authApi } from '../services/api';
 import { connectSocket } from '../services/socket';
 import { RootStackParamList } from '../types';
 import ToastContainer from '../components/Toast';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 import SplashScreen from '../screens/SplashScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import RoleSelectionScreen from '../screens/RoleSelectionScreen';
 import LoginScreen from '../screens/LoginScreen';
 import OTPVerificationScreen from '../screens/OTPVerificationScreen';
@@ -28,18 +28,14 @@ if (Platform.OS === 'web') {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { token, user, setAuth, clearAuth, isLoading } = useAuthStore();
+  const { user, setAuth, clearAuth } = useAuthStore();
   const [booting, setBooting] = useState(true);
 
-  console.log('[RootNavigator] render, booting =', booting, 'isLoading =', isLoading, 'user =', user);
-
   useEffect(() => {
-    console.log('[RootNavigator] boot effect start');
     (async () => {
       // Load stored token first
       await useAuthStore.getState().loadStoredAuth();
       const storedToken = useAuthStore.getState().token;
-      console.log('[RootNavigator] loadStoredAuth done, storedToken =', storedToken);
 
       if (storedToken) {
         try {
@@ -48,24 +44,20 @@ export default function RootNavigator() {
           await setAuth(fetchedUser, storedToken);
           // Connect socket after auth
           await connectSocket();
-          console.log('[RootNavigator] auth verified + socket connected');
-        } catch (err) {
-          console.log('[RootNavigator] token invalid, clearing', err);
-          // Token invalid — clear it
+        } catch {
+          // Token invalid or expired — clear it and fall back to login
           await clearAuth();
         }
       }
-      console.log('[RootNavigator] setBooting(false)');
       setBooting(false);
     })();
   }, []);
 
-  if (booting || isLoading) {
-    console.log('[RootNavigator] showing LoadingSpinner');
-    return <LoadingSpinner fullScreen message="Chargement..." />;
+  // Single loading gate: the branded splash doubles as the boot screen so
+  // there is no separate spinner shown before/after it (no flicker).
+  if (booting) {
+    return <SplashScreen />;
   }
-
-  console.log('[RootNavigator] rendering Stack.Navigator, user =', user);
 
   return (
     <View style={{ flex: 1 }}>
@@ -74,7 +66,7 @@ export default function RootNavigator() {
           {!user ? (
             // Unauthenticated flow
             <>
-              <Stack.Screen name="Splash" component={SplashScreen} />
+              <Stack.Screen name="Welcome" component={WelcomeScreen} />
               <Stack.Screen name="RoleSelection" component={RoleSelectionScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />

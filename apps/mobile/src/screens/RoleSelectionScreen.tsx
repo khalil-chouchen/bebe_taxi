@@ -12,19 +12,28 @@ import { COLORS, FONT_SIZE, SPACING } from '../constants';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoleSelection'>;
 
-export default function RoleSelectionScreen({ navigation }: Props) {
+export default function RoleSelectionScreen({ navigation, route }: Props) {
+  const { mode } = route.params;
+  const isRegister = mode === 'register';
+
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <Text style={styles.backText}>← Retour</Text>
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <Text style={styles.emoji}>🚖</Text>
         <Text style={styles.title}>Bebe Taxi</Text>
-        <Text style={styles.subtitle}>Choisissez votre profil</Text>
+        <Text style={styles.subtitle}>
+          {isRegister ? 'Créer un compte en tant que' : 'Se connecter en tant que'}
+        </Text>
       </View>
 
       <View style={styles.cards}>
         <TouchableOpacity
           style={[styles.card, styles.clientCard]}
-          onPress={() => navigation.navigate('Login', { role: 'client' })}
+          onPress={() => navigation.navigate('Login', { role: 'client', mode })}
           activeOpacity={0.85}
         >
           <Text style={styles.cardEmoji}>🙋</Text>
@@ -36,7 +45,7 @@ export default function RoleSelectionScreen({ navigation }: Props) {
 
         <TouchableOpacity
           style={[styles.card, styles.taxiCard]}
-          onPress={() => navigation.navigate('Login', { role: 'taxi' })}
+          onPress={() => navigation.navigate('Login', { role: 'taxi', mode })}
           activeOpacity={0.85}
         >
           <Text style={styles.cardEmoji}>🚖</Text>
@@ -56,9 +65,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     paddingHorizontal: SPACING.lg,
   },
+  backBtn: { marginTop: SPACING.md },
+  backText: { fontSize: FONT_SIZE.md, color: COLORS.mediumGray },
   header: {
     alignItems: 'center',
-    paddingTop: SPACING.xxl,
+    paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
     gap: 6,
   },

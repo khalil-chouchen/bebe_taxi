@@ -1,13 +1,14 @@
 import { io, Socket } from 'socket.io-client';
 import * as SecureStore from 'expo-secure-store';
 import { SOCKET_URL } from '../config/env';
+import { TOKEN_STORAGE_KEY } from '../constants';
 
 let socket: Socket | null = null;
 
 export async function connectSocket(): Promise<Socket> {
   if (socket?.connected) return socket;
 
-  const token = await SecureStore.getItemAsync('bebe_taxi_token');
+  const token = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
 
   socket = io(SOCKET_URL, {
     auth: { token },

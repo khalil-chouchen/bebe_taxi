@@ -35,6 +35,9 @@ export const SPACING = {
   xxl: 48,
 } as const;
 
+// ─── Storage keys ─────────────────────────────────────────────────────────────
+export const TOKEN_STORAGE_KEY = 'bebe_taxi_token';
+
 // ─── Map ──────────────────────────────────────────────────────────────────────
 export const DEFAULT_REGION = {
   latitude: 36.8189,    // Tunis as default

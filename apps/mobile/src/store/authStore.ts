@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { User } from '../types';
-
-const TOKEN_KEY = 'bebe_taxi_token';
+import { TOKEN_STORAGE_KEY as TOKEN_KEY } from '../constants';
 
 interface AuthState {
   user: User | null;

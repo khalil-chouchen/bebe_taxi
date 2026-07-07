@@ -18,6 +18,7 @@ import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { showToast } from '../components/Toast';
 import { connectSocket } from '../services/socket';
+import { isValidPhone, normalizePhone } from '../utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -25,21 +26,29 @@ export default function LoginScreen({ navigation, route }: Props) {
   const { role } = route.params;
   const { setAuth } = useAuthStore();
 
+  const [mode, setMode] = useState(route.params.mode);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const isClient = role === 'client';
+  const isLogin = mode === 'login';
 
   const handleLogin = async () => {
+    if (loading) return;
+
     if (!phone.trim() || !password.trim()) {
       showToast('Veuillez remplir tous les champs', 'warning');
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      showToast('Numéro de téléphone invalide', 'warning');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await authApi.login(phone.trim(), password, role);
+      const res = await authApi.login(normalizePhone(phone), password, role);
       const { token, user } = res.data;
       await setAuth(user, token);
       await connectSocket();
@@ -51,21 +60,28 @@ export default function LoginScreen({ navigation, route }: Props) {
   };
 
   const handleGoToRegister = async () => {
+    if (loading) return;
+
     if (!phone.trim()) {
       showToast('Entrez votre numéro de téléphone', 'warning');
       return;
     }
+    if (!isValidPhone(phone)) {
+      showToast('Numéro de téléphone invalide', 'warning');
+      return;
+    }
 
+    const normalized = normalizePhone(phone);
     setLoading(true);
     try {
-      const res = await authApi.sendOtp(phone.trim());
+      const res = await authApi.sendOtp(normalized);
       if (res.data.devCode) {
         showToast(`[DEV] Code OTP: ${res.data.devCode}`, 'info');
       } else {
         showToast('Code OTP envoyé sur WhatsApp', 'success');
       }
       navigation.navigate('OTPVerification', {
-        phone: phone.trim(),
+        phone: normalized,
         nextScreen: isClient ? 'ClientRegister' : 'TaxiRegister',
       });
     } catch (err: any) {
@@ -90,10 +106,19 @@ export default function LoginScreen({ navigation, route }: Props) {
           </TouchableOpacity>
 
           <Text style={styles.title}>
-            {isClient ? '🙋 Connexion Client' : '🚖 Connexion Chauffeur'}
+            {isClient ? '🙋 ' : '🚖 '}
+            {isLogin
+              ? isClient
+                ? 'Connexion Client'
+                : 'Connexion Chauffeur'
+              : isClient
+              ? 'Inscription Client'
+              : 'Inscription Chauffeur'}
           </Text>
           <Text style={styles.subtitle}>
-            Connectez-vous ou créez un compte
+            {isLogin
+              ? 'Connectez-vous avec votre numéro et mot de passe'
+              : 'Vérifiez votre numéro pour commencer'}
           </Text>
 
           <View style={styles.form}>
@@ -107,48 +132,50 @@ export default function LoginScreen({ navigation, route }: Props) {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 autoComplete="tel"
+                editable={!loading}
               />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="••••••"
-                placeholderTextColor={COLORS.mediumGray}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
+            {isLogin && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Mot de passe</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••"
+                  placeholderTextColor={COLORS.mediumGray}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!loading}
+                />
+              </View>
+            )}
 
             <TouchableOpacity
-              style={[styles.btn, styles.loginBtn]}
-              onPress={handleLogin}
+              style={[styles.btn, styles.primaryBtn, loading && styles.btnDisabled]}
+              onPress={isLogin ? handleLogin : handleGoToRegister}
               disabled={loading}
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color={COLORS.dark} />
               ) : (
-                <Text style={styles.btnText}>Se connecter</Text>
+                <Text style={styles.btnText}>
+                  {isLogin ? 'Se connecter' : 'Continuer'}
+                </Text>
               )}
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OU</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
             <TouchableOpacity
-              style={[styles.btn, styles.registerBtn]}
-              onPress={handleGoToRegister}
+              onPress={() => setMode(isLogin ? 'register' : 'login')}
               disabled={loading}
-              activeOpacity={0.85}
+              style={styles.switchModeBtn}
             >
-              <Text style={[styles.btnText, { color: COLORS.dark }]}>
-                Créer un compte
+              <Text style={styles.switchModeText}>
+                {isLogin ? "Pas encore de compte ? " : 'Déjà un compte ? '}
+                <Text style={styles.switchModeLink}>
+                  {isLogin ? 'Créer un compte' : 'Se connecter'}
+                </Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -185,18 +212,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 52,
   },
-  loginBtn: { backgroundColor: COLORS.primary },
-  registerBtn: {
-    backgroundColor: COLORS.lightGray,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
-  },
+  btnDisabled: { opacity: 0.6 },
+  primaryBtn: { backgroundColor: COLORS.primary },
   btnText: { fontSize: FONT_SIZE.lg, fontWeight: '700', color: COLORS.dark },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  dividerText: { fontSize: FONT_SIZE.sm, color: COLORS.mediumGray },
+  switchModeBtn: { alignItems: 'center', marginTop: SPACING.sm },
+  switchModeText: { fontSize: FONT_SIZE.md, color: COLORS.mediumGray },
+  switchModeLink: { color: COLORS.primaryDark, fontWeight: '700' },
 });

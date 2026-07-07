@@ -1,26 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
 import { COLORS, FONT_SIZE } from '../constants';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
-
-export default function SplashScreen({ navigation }: Props) {
-  const scale = new Animated.Value(0.7);
-  const opacity = new Animated.Value(0);
+/**
+ * Branded loading gate shown while the app restores/verifies the stored
+ * session on launch. Not a navigable screen — rendered directly by
+ * RootNavigator, so it never re-triggers its animation on remount.
+ */
+export default function SplashScreen() {
+  const scale = useRef(new Animated.Value(0.7)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 12 }),
-      Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
-
-    const timer = setTimeout(() => {
-      navigation.replace('RoleSelection');
-    }, 2000);
-
-    return () => clearTimeout(timer);
   }, []);
 
   return (

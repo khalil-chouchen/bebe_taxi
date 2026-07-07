@@ -16,7 +16,6 @@ function App() {
     (async () => {
       try {
         // Any pre-load tasks (fonts, assets) go here
-        await new Promise((r) => setTimeout(r, 500));
       } finally {
         setAppReady(true);
         await SplashScreen.hideAsync();

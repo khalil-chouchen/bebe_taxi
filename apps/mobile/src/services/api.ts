@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config/env';
+import { TOKEN_STORAGE_KEY } from '../constants';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -11,7 +12,7 @@ const api = axios.create({
 // Attach JWT token to every request
 api.interceptors.request.use(async (config) => {
   try {
-    const token = await SecureStore.getItemAsync('bebe_taxi_token');
+    const token = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

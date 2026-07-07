@@ -95,11 +95,13 @@ export interface ActiveTripData {
   };
 }
 
+export type AuthMode = 'login' | 'register';
+
 // Navigation param lists
 export type RootStackParamList = {
-  Splash: undefined;
-  RoleSelection: undefined;
-  Login: { role: UserRole };
+  Welcome: undefined;
+  RoleSelection: { mode: AuthMode };
+  Login: { role: UserRole; mode: AuthMode };
   OTPVerification: { phone: string; nextScreen: 'ClientRegister' | 'TaxiRegister' | 'Login' };
   ClientRegister: { phone: string };
   TaxiRegister: { phone: string };
